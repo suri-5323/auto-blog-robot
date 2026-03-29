@@ -1,21 +1,23 @@
 import os
 import json
-from google import genai
+import warnings
+import google.generativeai as genai
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from google.auth.transport.requests import Request
 
-# 1. 제미나이(작가 로봇) API 키
+# 짜증나는 노란색 경고 메모장 안 보이게 숨기기!
+warnings.filterwarnings("ignore")
+
+# --- [설정 영역] 비밀 금고(Secrets)에서 열쇠 가져오기 ---
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
-# 2. 구글 블로거 OAuth2 클라이언트 JSON 내용 전체
 GCP_CLIENT_SECRET_JSON_STR = os.environ.get('GCP_CLIENT_SECRET')
-# 3. 구글 블로거 영구 출입증(Refresh Token)
 GCP_REFRESH_TOKEN = os.environ.get('GCP_REFRESH_TOKEN')
 
-# 최신 제미나이 로봇 준비!
-gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+# 제미나이 로봇 준비
+genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel('gemini-pro')
 
-# 구글 블로거 출입 권한
 SCOPES = ['https://www.googleapis.com/auth/blogger']
 
 def get_blogger_service():
@@ -28,7 +30,7 @@ def get_blogger_service():
         elif 'web' in client_config:
             creds_info = client_config['web']
         else:
-            raise ValueError("GCP_CLIENT_SECRET이 올바른 JSON 형식이 아닙니다.")
+            raise ValueError("GCP_CLIENT_SECRET 열쇠 모양이 이상해요.")
 
         creds = Credentials(
             token=None,
@@ -43,23 +45,23 @@ def get_blogger_service():
             if creds.expired and creds.refresh_token:
                 creds.refresh(Request())
             else:
-                raise Exception("인증 실패! 열쇠(Refresh Token)가 잘못되었거나 만료되었습니다.")
+                raise Exception("블로거 마스터키가 만료되었거나 잘못되었어요.")
 
         service = build('blogger', 'v3', credentials=creds)
         return service
     except Exception as e:
-        print(f"[오류] 블로거 열쇠 문제 발생: {e}")
+        print(f"[오류] 블로거 열쇠 에러: {e}")
         return None
 
 def generate_content():
     """제미나이(작가 로봇)에게 블로그 글을 써달라고 부탁합니다."""
-    print("최신 제미나이 로봇에게 글 부탁하는 중...")
+    print("제미나이 로봇에게 재미있는 글을 부탁하는 중...")
     prompt = """
     당신은 '초등학생도 이해할 수 있는 재미있는 IT 기술과 과학 상식' 블로그의 주인입니다.
     오늘 블로그에 올릴 글을 '제목'과 '본문'으로 나누어서 써주세요.
 
     [요구사항]
-    1. 주제: '최신 IT 기술'이나 '신기한 과학 상식' 중 하나.
+    1. 주제: '최신 IT 기술'이나 '신기한 과학 상식' 중 하나를 선택.
     2. 말투: 초등학생 친구에게 이야기하듯 친근하게.
     3. 형식:
        - 출력은 반드시 JSON 형식: {"title": "글 제목", "content": "글 본문 HTML"}
@@ -67,11 +69,7 @@ def generate_content():
        - 이모티콘 적극 사용.
     """
     try:
-        # 최신 코드 적용!
-        response = gemini_client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt,
-        )
+        response = model.generate_content(prompt)
         full_text = response.text.strip()
         
         if full_text.startswith("```json"):

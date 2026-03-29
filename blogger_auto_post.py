@@ -14,9 +14,9 @@ GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 GCP_CLIENT_SECRET_JSON_STR = os.environ.get('GCP_CLIENT_SECRET')
 GCP_REFRESH_TOKEN = os.environ.get('GCP_REFRESH_TOKEN')
 
-# 제미나이 로봇 준비
+# 🚨 고친 부분 1: 최신 제미나이 로봇(1.5-flash)으로 이름 변경!
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-pro')
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 SCOPES = ['https://www.googleapis.com/auth/blogger']
 
@@ -41,7 +41,6 @@ def get_blogger_service():
             scopes=SCOPES
         )
 
-        # 🚨 [내가 실수했던 곳 고침!] 로봇이 바보같이 오해하던 부분을 고쳤어!
         if not creds.valid:
             if creds.refresh_token:
                 creds.refresh(Request())
@@ -56,7 +55,7 @@ def get_blogger_service():
 
 def generate_content():
     """제미나이(작가 로봇)에게 블로그 글을 써달라고 부탁합니다."""
-    print("제미나이 로봇에게 재미있는 글을 부탁하는 중...")
+    print("최신 제미나이 로봇에게 재미있는 글을 부탁하는 중...")
     prompt = """
     당신은 '초등학생도 이해할 수 있는 재미있는 IT 기술과 과학 상식' 블로그의 주인입니다.
     오늘 블로그에 올릴 글을 '제목'과 '본문'으로 나누어서 써주세요.
@@ -75,6 +74,8 @@ def generate_content():
         
         if full_text.startswith("```json"):
             full_text = full_text.replace("```json", "").replace("```", "").strip()
+        elif full_text.startswith("```"):
+            full_text = full_text.replace("```", "").strip()
 
         content_json = json.loads(full_text)
         return content_json['title'], content_json['content']
@@ -86,7 +87,9 @@ def post_to_blogger(service, title, content):
     """블로그에 글 올리기"""
     print(f"블로그에 글을 올리는 중... 제목: {title}")
     try:
-        blogs_response = service.blogs().list(userId='me').execute()
+        # 🚨 고친 부분 2: list()가 아니라 listByUser() 로 정확하게 물어보기!
+        blogs_response = service.blogs().listByUser(userId='me').execute()
+        
         if 'items' not in blogs_response or not blogs_response['items']:
             print("[오류] 블로그가 없습니다!")
             return False
@@ -95,7 +98,7 @@ def post_to_blogger(service, title, content):
         post_data = {'kind': 'blogger#post', 'title': title, 'content': content}
         posts_response = service.posts().insert(blogId=blog_id, body=post_data, isDraft=False).execute()
 
-        print(f"[성공] 글이 자동으로 올라갔어요! URL: {posts_response['url']}")
+        print(f"[성공] 글이 자동으로 올라갔어요! 주소: {posts_response['url']}")
         return True
     except Exception as e:
         print(f"[오류] 글 올리기 실패: {e}")

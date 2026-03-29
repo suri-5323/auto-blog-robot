@@ -41,11 +41,12 @@ def get_blogger_service():
             scopes=SCOPES
         )
 
+        # 🚨 [내가 실수했던 곳 고침!] 로봇이 바보같이 오해하던 부분을 고쳤어!
         if not creds.valid:
-            if creds.expired and creds.refresh_token:
+            if creds.refresh_token:
                 creds.refresh(Request())
             else:
-                raise Exception("블로거 마스터키가 만료되었거나 잘못되었어요.")
+                raise Exception("마스터키(Refresh Token)가 없습니다.")
 
         service = build('blogger', 'v3', credentials=creds)
         return service
